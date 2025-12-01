@@ -13,6 +13,7 @@ export default function Navbar() {
         }}>
             <Link to="/">Landing</Link>
             <Link to="/dashboard">Dashboard</Link>
+            <Link to="/top">Top Markets</Link> {/* New tab */}
         </div>
     );
 }

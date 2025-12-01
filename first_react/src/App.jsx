@@ -1,18 +1,20 @@
 import React from "react";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
-import LandingPage from "./pages/LandingPage";
+import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import Dashboard from "./pages/Dashboard";
+import Landing from "./pages/LandingPage";
+import TopMarkets from "./pages/TopMarkets";
 import Navbar from "./components/Navbar";
 
 function App() {
     return (
-        <BrowserRouter>
+        <Router>
             <Navbar />
             <Routes>
-                <Route path="/" element={<LandingPage />} />
+                <Route path="/" element={<Landing />} />
                 <Route path="/dashboard" element={<Dashboard />} />
+                <Route path="/top" element={<TopMarkets />} />
             </Routes>
-        </BrowserRouter>
+        </Router>
     );
 }
 

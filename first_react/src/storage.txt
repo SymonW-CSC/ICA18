@@ -1,0 +1,77 @@
+O54A46XP46YZ2MQU
+
+
+import React, { useEffect, useState } from "react";
+
+function StockChart({ symbol }) {
+    const [chartData, setChartData] = useState(null);
+    const [currentPrice, setCurrentPrice] = useState(null);
+    const [error, setError] = useState(null);
+
+    useEffect(() => {
+        if (!symbol) return;
+
+        let cancelled = false;
+
+        const fetchWithBackoff = async (url, options, retries = 3, delay = 1000) => {
+            const res = await fetch(url, options);
+            if (res.status === 429 && retries > 0) {
+                // wait
+                await new Promise(r => setTimeout(r, delay));
+                return fetchWithBackoff(url, options, retries - 1, delay * 2);
+            }
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            return res.json();
+        };
+
+        const fetchStock = async () => {
+            try {
+                const options = {
+                    method: "GET",
+                    headers: {
+                        "X-RapidAPI-Key": import.meta.env.VITE_YAHOO_API_KEY,
+                        "X-RapidAPI-Host": "yahoo-finance127.p.rapidapi.com"
+                    }
+                };
+
+                const [priceData, histData] = await Promise.all([
+                    fetchWithBackoff(`https://yahoo-finance127.p.rapidapi.com/price/${symbol}`, options),
+                    fetchWithBackoff(`https://yahoo-finance127.p.rapidapi.com/hist/${symbol}/1mo`, options)
+                ]);
+
+                if (!cancelled) {
+                    setCurrentPrice(priceData.regularMarketPrice);
+                    const formatted = (histData.prices || [])
+                        .filter(p => p.close != null)
+                        .map(p => ({
+                            date: new Date(p.date * 1000).toLocaleDateString(),
+                            price: p.close
+                        }));
+                    setChartData(formatted);
+                }
+            } catch (err) {
+                if (!cancelled) setError(err.message);
+                console.error("Stock fetch error:", err);
+            }
+        };
+
+        fetchStock();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [symbol]);
+
+    if (error) return <div>Error: {error}</div>;
+    if (!chartData) return <div>Loading...</div>;
+
+    // render chart with chartData & currentPrice...
+    return (
+        <div>
+            <h2>{symbol} — {currentPrice ? `$${currentPrice}` : "No price"}</h2>
+            {/* chart component */}
+        </div>
+    );
+}
+
+export default StockChart;
