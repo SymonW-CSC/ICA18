@@ -1,8 +1,7 @@
-// Dashboard.jsx
-import React, { useReducer, useEffect, useMemo, useState } from "react";
+import React, { useReducer, useEffect, useCallback, useMemo } from "react";
 import StockChart from "../components/StockChart";
 
-// --- Custom useLocalStorage Hook ---
+
 function useLocalStorage(key, initialValue) {
     const [storedValue, setStoredValue] = React.useState(() => {
         try {
@@ -21,23 +20,17 @@ function useLocalStorage(key, initialValue) {
     return [storedValue, setValue];
 }
 
-// --- Reducer ---
+
 function portfolioReducer(state, action) {
     switch (action.type) {
         case "ADD":
             return [...state, action.payload];
         case "DELETE":
             return state.filter((item) => item.ticker !== action.payload);
-        case "UPDATE_AMOUNT":
+        case "UPDATE":
             return state.map((item) =>
                 item.ticker === action.payload.ticker
-                    ? { ...item, amount: action.payload.amount }
-                    : item
-            );
-        case "UPDATE_PRICE":
-            return state.map((item) =>
-                item.ticker === action.payload.ticker
-                    ? { ...item, price: action.payload.price }
+                    ? { ...item, ...action.payload.updates }
                     : item
             );
         default:
@@ -45,67 +38,71 @@ function portfolioReducer(state, action) {
     }
 }
 
-// --- Dashboard Component ---
+
 export default function Dashboard() {
     const [storedStocks, setStoredStocks] = useLocalStorage("stocks", [
-        { ticker: "NVDA", amount: 0, price: 0 },
+        { ticker: "AAPL", amount: 2, price: 170 },
+        { ticker: "TSLA", amount: 1, price: 240 },
     ]);
     const [storedCryptos, setStoredCryptos] = useLocalStorage("cryptos", [
-        { ticker: "BTC", amount: 0, price: 0 },
+        { ticker: "DOGE", amount: 2000, price: 0.17 },
+        { ticker: "BTC", amount: 0.05, price: 34000 },
     ]);
 
     const [stocks, dispatchStocks] = useReducer(portfolioReducer, storedStocks);
-    const [cryptos, dispatchCryptos] = useReducer(portfolioReducer, storedCryptos);
+    const [cryptos, dispatchCryptos] = useReducer(
+        portfolioReducer,
+        storedCryptos
+    );
 
-    const [selectedTicker, setSelectedTicker] = useState(null);
+    const [selectedTicker, setSelectedTicker] = React.useState(null);
 
-    const [newStockTicker, setNewStockTicker] = useState("");
-    const [newCryptoTicker, setNewCryptoTicker] = useState("");
 
-    // Persist changes
     useEffect(() => setStoredStocks(stocks), [stocks]);
     useEffect(() => setStoredCryptos(cryptos), [cryptos]);
 
-    // --- Handlers ---
-    const handleStockChange = (ticker, value) => {
-        const amount = parseFloat(value) || 0;
-        dispatchStocks({ type: "UPDATE_AMOUNT", payload: { ticker, amount } });
-    };
 
-    const handleCryptoChange = (ticker, value) => {
-        const amount = parseFloat(value) || 0;
-        dispatchCryptos({ type: "UPDATE_AMOUNT", payload: { ticker, amount } });
-    };
-
-    const addStock = () => {
-        const ticker = newStockTicker.trim().toUpperCase();
-        if (!ticker) return;
-        // Prevent duplicates
-        if (stocks.find((s) => s.ticker === ticker)) {
-            alert("Stock already exists");
-            return;
+    const addStock = useCallback(() => {
+        const ticker = prompt("Enter the stock ticker:")?.toUpperCase();
+        if (ticker) {
+            dispatchStocks({ type: "ADD", payload: { ticker, amount: 0, price: 0 } });
         }
-        dispatchStocks({ type: "ADD", payload: { ticker, amount: 0, price: 0 } });
-        setNewStockTicker("");
-    };
+    }, []);
 
-    const addCrypto = () => {
-        const ticker = newCryptoTicker.trim().toUpperCase();
-        if (!ticker) return;
-        if (cryptos.find((c) => c.ticker === ticker)) {
-            alert("Crypto already exists");
-            return;
+    const addCrypto = useCallback(() => {
+        const ticker = prompt("Enter the crypto symbol:")?.toUpperCase();
+        if (ticker) {
+            dispatchCryptos({ type: "ADD", payload: { ticker, amount: 0, price: 0 } });
         }
-        dispatchCryptos({ type: "ADD", payload: { ticker, amount: 0, price: 0 } });
-        setNewCryptoTicker("");
-    };
+    }, []);
 
-    const deleteItem = (ticker, type) => {
+    const deleteItem = useCallback((ticker, type) => {
         if (type === "stock") dispatchStocks({ type: "DELETE", payload: ticker });
         else if (type === "crypto") dispatchCryptos({ type: "DELETE", payload: ticker });
+    }, []);
+
+
+    const updateStock = (ticker, key, value) => {
+
+        const numericValue = parseFloat(value.replace(/[^0-9.]/g, "")) || 0;
+        dispatchStocks({ type: "UPDATE", payload: { ticker, updates: { [key]: numericValue } } });
     };
 
-    // --- Calculate Total Value ---
+    const updateCrypto = (ticker, key, value) => {
+        const numericValue = parseFloat(value.replace(/[^0-9.]/g, "")) || 0;
+        dispatchCryptos({ type: "UPDATE", payload: { ticker, updates: { [key]: numericValue } } });
+    };
+
+
+    const totalShares = useMemo(
+        () => stocks.reduce((acc, s) => acc + s.amount, 0),
+        [stocks]
+    );
+    const totalCoins = useMemo(
+        () => cryptos.reduce((acc, c) => acc + c.amount, 0),
+        [cryptos]
+    );
+
     const totalStockValue = useMemo(
         () => stocks.reduce((acc, s) => acc + s.price * s.amount, 0),
         [stocks]
@@ -119,55 +116,57 @@ export default function Dashboard() {
         <div style={{ padding: "20px" }}>
             <h1>Dashboard</h1>
 
-            <p>Total Stock Value: ${totalStockValue.toFixed(2)}</p>
-            <p>Total Crypto Value: ${totalCryptoValue.toFixed(2)}</p>
+            <div style={{ marginBottom: "20px" }}>
+                <p>Total Shares: {totalShares}</p>
+                <p>Total Stock Value: ${totalStockValue.toFixed(2)}</p>
+                <p>Total Coins: {totalCoins}</p>
+                <p>Total Crypto Value: ${totalCryptoValue.toFixed(2)}</p>
+            </div>
 
-            <div
-                style={{
-                    display: "flex",
-                    gap: "20px",
-                    flexWrap: "wrap",
-                    marginTop: "20px",
-                }}
-            >
+            <div style={{ display: "flex", gap: "20px", flexWrap: "wrap" }}>
                 {/* Stocks Column */}
                 <div style={{ flex: 1, minWidth: "300px" }}>
                     <h2>Stocks</h2>
-                    <div style={{ display: "flex", marginBottom: "10px", gap: "5px" }}>
-                        <input
-                            type="text"
-                            placeholder="Add stock ticker"
-                            value={newStockTicker}
-                            onChange={(e) => setNewStockTicker(e.target.value)}
-                        />
-                        <button onClick={addStock}>Add</button>
-                    </div>
+                    <button onClick={addStock} style={{ marginBottom: "10px" }}>
+                        + Add Stock
+                    </button>
                     {stocks.map((s) => (
                         <div
                             key={s.ticker}
                             style={{
                                 display: "flex",
-                                justifyContent: "space-between",
-                                alignItems: "center",
+                                flexDirection: "column",
                                 padding: "8px",
                                 border: "1px solid #ccc",
                                 marginBottom: "5px",
                                 borderRadius: "5px",
                                 cursor: "pointer",
+                                background: selectedTicker === s.ticker ? "#90EE90" : "green",
                             }}
                             onClick={() => setSelectedTicker(s.ticker)}
                         >
-                            <span>{s.ticker}: ${s.price}</span>
-                            <input
-                                type="number"
-                                min="0"
-                                value={s.amount}
-                                onChange={(e) => handleStockChange(s.ticker, e.target.value)}
-                                style={{ width: "60px" }}
-                            />
-                            <button onClick={(e) => { e.stopPropagation(); deleteItem(s.ticker, "stock"); }}>
-                                Delete
-                            </button>
+                            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "5px" }}>
+                                <strong>{s.ticker}</strong>
+                                <button onClick={(e) => { e.stopPropagation(); deleteItem(s.ticker, "stock"); }}>
+                                    Delete
+                                </button>
+                            </div>
+                            <div style={{ display: "flex", gap: "10px" }}>
+                                <input
+                                    type="text"
+                                    placeholder="Shares"
+                                    value={s.amount}
+                                    onChange={(e) => updateStock(s.ticker, "amount", e.target.value)}
+                                    style={{ flex: 1 }}
+                                />
+                                <input
+                                    type="text"
+                                    placeholder="Price per share"
+                                    value={s.price}
+                                    onChange={(e) => updateStock(s.ticker, "price", e.target.value)}
+                                    style={{ flex: 1 }}
+                                />
+                            </div>
                         </div>
                     ))}
                 </div>
@@ -175,41 +174,46 @@ export default function Dashboard() {
                 {/* Cryptos Column */}
                 <div style={{ flex: 1, minWidth: "300px" }}>
                     <h2>Cryptos</h2>
-                    <div style={{ display: "flex", marginBottom: "10px", gap: "5px" }}>
-                        <input
-                            type="text"
-                            placeholder="Add crypto symbol"
-                            value={newCryptoTicker}
-                            onChange={(e) => setNewCryptoTicker(e.target.value)}
-                        />
-                        <button onClick={addCrypto}>Add</button>
-                    </div>
+                    <button onClick={addCrypto} style={{ marginBottom: "10px" }}>
+                        + Add Crypto
+                    </button>
                     {cryptos.map((c) => (
                         <div
                             key={c.ticker}
                             style={{
                                 display: "flex",
-                                justifyContent: "space-between",
-                                alignItems: "center",
+                                flexDirection: "column",
                                 padding: "8px",
                                 border: "1px solid #ccc",
                                 marginBottom: "5px",
                                 borderRadius: "5px",
                                 cursor: "pointer",
+                                background: selectedTicker === c.ticker ? "90EE90" : "green",
                             }}
                             onClick={() => setSelectedTicker(c.ticker)}
                         >
-                            <span>{c.ticker}: ${c.price}</span>
-                            <input
-                                type="number"
-                                min="0"
-                                value={c.amount}
-                                onChange={(e) => handleCryptoChange(c.ticker, e.target.value)}
-                                style={{ width: "60px" }}
-                            />
-                            <button onClick={(e) => { e.stopPropagation(); deleteItem(c.ticker, "crypto"); }}>
-                                Delete
-                            </button>
+                            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "5px" }}>
+                                <strong>{c.ticker}</strong>
+                                <button onClick={(e) => { e.stopPropagation(); deleteItem(c.ticker, "crypto"); }}>
+                                    Delete
+                                </button>
+                            </div>
+                            <div style={{ display: "flex", gap: "10px" }}>
+                                <input
+                                    type="text"
+                                    placeholder="Coins"
+                                    value={c.amount}
+                                    onChange={(e) => updateCrypto(c.ticker, "amount", e.target.value)}
+                                    style={{ flex: 1 }}
+                                />
+                                <input
+                                    type="text"
+                                    placeholder="Price per coin"
+                                    value={c.price}
+                                    onChange={(e) => updateCrypto(c.ticker, "price", e.target.value)}
+                                    style={{ flex: 1 }}
+                                />
+                            </div>
                         </div>
                     ))}
                 </div>

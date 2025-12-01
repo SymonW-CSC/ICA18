@@ -7,7 +7,7 @@ export default function StockChart({ symbol, type }) {
 
     //O54A46XP46YZ2MQU used up
 
-    const apiKey = "4J3DZ2DH2D7E4LOC"; // <-- replace
+    const apiKey = "4J3DZ2DH2D7E4LOC";
 
     useEffect(() => {
         async function fetchData() {
@@ -25,7 +25,6 @@ export default function StockChart({ symbol, type }) {
                 const res = await fetch(url);
                 const json = await res.json();
 
-                // DEBUG: log full response for crypto
                 if (type === "crypto") {
                     console.log(`AlphaVantage crypto response for ${symbol}:`, json);
                 }
@@ -49,7 +48,7 @@ export default function StockChart({ symbol, type }) {
 
                         return { date, price };
                     })
-                    .filter(d => !isNaN(d.price))  // drop entries with invalid price
+                    .filter(d => !isNaN(d.price))
                     .reverse();
 
                 if (chartData.length === 0) {

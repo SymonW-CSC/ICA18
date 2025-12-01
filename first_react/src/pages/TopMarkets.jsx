@@ -63,7 +63,6 @@ const topStocks = [
     "Novartis AG: NVS",
     "Goldman Sachs Group, Inc. (The): GS",
     "SK Hynix Inc.: 000660.KS",
-    // Continuing with top global companies...
     "Philip Morris International Inc.: PM",
     "T-Mobile US, Inc.: TMUS",
     "RTX Corporation: RTX",
@@ -220,7 +219,7 @@ export default function TopMarkets() {
                 style={{
                     display: "flex",
                     gap: "40px",
-                    flexWrap: "wrap" // Allows columns to collapse on smaller screens
+                    flexWrap: "wrap"
                 }}
             >
                 {/* Stocks Column */}
